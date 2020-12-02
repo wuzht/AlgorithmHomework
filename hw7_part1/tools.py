@@ -26,37 +26,6 @@ class Logger(object):
         self.logger.addHandler(th)
 
 
-class ImProgressBar(object):
-    def __init__(self, total_iter, bar_len=50):
-        self.total_iter = total_iter
-        self.bar_len = bar_len
-        self.coef = self.bar_len / 100
-        self.foo = ['-', '\\', '|', '/']
-        self.out_str = ''
-
-    def update(self, i, front='', end=''):
-        if front != '':
-            front += ' '
-        sys.stdout.write('\r')
-        progress = int((i + 1) / self.total_iter * 100)
-        self.out_str = "%s[%4s/%4s] %3s%% |%s%s| %s %s" % (
-            front,
-            (i + 1),
-            self.total_iter,
-            progress,
-            int(progress * self.coef) * '>',
-            (self.bar_len - int(progress * self.coef)) * ' ',
-            self.foo[(i + 1) % len(self.foo)],
-            end
-        )
-        sys.stdout.write(self.out_str)
-        sys.stdout.flush()
-
-    def finish(self):
-        sys.stdout.write('\n')
-        return self.out_str
-
-
 class AverageMeter():
     """Computes and stores the average and current value"""
     def __init__(self):
