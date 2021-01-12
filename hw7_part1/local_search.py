@@ -2,6 +2,7 @@ import random
 import time
 import os
 import datetime
+import sys
 
 import tools
 
@@ -16,6 +17,46 @@ class Queens(object):
         self.queens = list(range(self.n))
         self.p_diag = [0 for _ in range(2 * n - 1)]
         self.n_diag = [0 for _ in range(2 * n - 1)]
+
+    def vanilla_local_search(self) -> int:
+        def get_conflict(queens) -> int:
+            conflict_count = 0
+            for i in range(len(queens) - 1):
+                for j in range(i + 1, len(queens)):
+                    if j - i == abs(queens[j] - queens[i]):
+                        conflict_count += 1
+            return conflict_count
+        end = time.time()
+        random.shuffle(self.queens)
+        step = 0
+        while True:     
+            cur_conflit = get_conflict(self.queens)
+            if cur_conflit == 0:
+                return step, time.time() - end
+            min_states = []
+            min_conflit = sys.maxsize
+            # 对于棋盘上的任意两个皇后，交换他们的位置
+            for i in range(self.n - 1):
+                for j in range(i + 1, self.n):
+                    # 交换两个皇后的位置
+                    self.queens[i], self.queens[j] = self.queens[j], self.queens[i]
+                    new_conflit = get_conflict(self.queens)  
+                    if new_conflit < min_conflit:
+                        min_conflit = new_conflit
+                        min_states = [(i, j)]
+                    elif new_conflit == min_conflit:
+                        min_states += [(i, j)]
+                    # 还原两个皇后的位置
+                    self.queens[i], self.queens[j] = self.queens[j], self.queens[i]
+            # 若有更好的后继
+            if min_conflit < cur_conflit:
+                # 随机选取一个冲突最少的位置
+                i, j = min_states[int(random.randint(0, len(min_states) - 1))]
+                # 交换两个皇后的位置
+                self.queens[i], self.queens[j] = self.queens[j], self.queens[i]
+            else:
+                random.shuffle(self.queens)
+            step += 1
 
     def cal_confict(self) -> int:
         for i in range(2 * self.n - 1):
@@ -91,20 +132,21 @@ class Queens(object):
                     self.recover_conflict(i, j) # 恢复冲突表
 
 
-    def test(self, logger, total_run=10):
-        logger.critical('[local_search n = {n}]'.format(n=self.n))
+    def test(self, logger, method=True, total_run=10):
+        method = self.local_search if method else self.vanilla_local_search
+        logger.critical('[{} n = {n}]'.format(method.__name__, n=self.n))
         step_meter = tools.AverageMeter()
         time_meter = tools.AverageMeter()
         for i in range(total_run):
-            s, t = self.local_search()
+            s, t = method()
             step_meter.update(s)
             time_meter.update(t)
             logger.info('[n = {}] [{:3d}/{}] '
                 'step: {step_meter.avg:.3f} ({step_meter.sum}/{step_meter.count})\t'
                 'time: {time_meter.avg:.3f} ({time_meter.sum:.3f}/{time_meter.count})'.format(self.n, i + 1, total_run, step_meter=step_meter, time_meter=time_meter))
         
-        logger.critical('[local_search n = {n}] average step: {step_meter.avg} ({step_meter.sum}/{step_meter.count})'.format(n=self.n, step_meter=step_meter))
-        logger.critical('[local_search n = {n}] average time: {time_meter.avg} ({time_meter.sum}/{time_meter.count})'.format(n=self.n, time_meter=time_meter))
+        logger.critical('[{} n = {n}] average step: {step_meter.avg} ({step_meter.sum}/{step_meter.count})'.format(method.__name__, n=self.n, step_meter=step_meter))
+        logger.critical('[{} n = {n}] average time: {time_meter.avg} ({time_meter.sum}/{time_meter.count})'.format(method.__name__, n=self.n, time_meter=time_meter))
 
 
 if __name__ == "__main__":
@@ -114,16 +156,18 @@ if __name__ == "__main__":
     log_path = os.path.join(exp_dir, '{}.log'.format(now_time))
     logger = tools.Logger(log_path, level='debug').logger
 
+    method = False
+
     for n in [8, 16, 32, 64, 10**2, 10**3]:
         q = Queens(n=n)
-        q.test(logger, total_run=100)
+        q.test(logger, method=method, total_run=10)
 
-    q = Queens(n=10**4)
-    q.test(logger, total_run=10)
+    # q = Queens(n=10**4)
+    # q.test(logger, method=method, total_run=10)
 
-    q = Queens(n=10**5)
-    q.test(logger, total_run=10)
+    # q = Queens(n=10**5)
+    # q.test(logger, method=method, total_run=10)
 
-    q = Queens(n=10**6)
-    q.test(logger, total_run=3)
+    # q = Queens(n=10**6)
+    # q.test(logger, method=method, total_run=3)
     
