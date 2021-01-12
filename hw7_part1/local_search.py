@@ -3,10 +3,50 @@ import time
 import os
 import datetime
 import sys
+import logging
+from logging import handlers
 
-import tools
+
+class Logger(object):
+    level_relations = {
+        'debug': logging.DEBUG,
+        'info': logging.INFO,
+        'warning': logging.WARNING,
+        'error': logging.ERROR,
+        'crit': logging.CRITICAL
+    }
+
+    def __init__(self, filename, level='info', when='D', backCount=0, fmt='%(asctime)s - %(pathname)s[line:%(lineno)d] - %(levelname)s: %(message)s'):
+        self.logger = logging.getLogger(filename)
+        format_str = logging.Formatter(fmt)
+        self.logger.setLevel(self.level_relations.get(level))
+        sh = logging.StreamHandler()
+        sh.setFormatter(format_str)
+        th = handlers.TimedRotatingFileHandler(
+            filename=filename, when=when, interval=100, backupCount=backCount, encoding='utf-8')
+        th.setFormatter(format_str)
+        self.logger.addHandler(sh)
+        self.logger.addHandler(th)
 
 
+class AverageMeter():
+    """Computes and stores the average and current value"""
+    def __init__(self):
+        self.reset()
+
+    def reset(self):
+        self.val = 0
+        self.avg = 0
+        self.sum = 0
+        self.count = 0
+
+    def update(self, val, n=1):
+        self.val = val
+        self.sum += val * n
+        self.count += n
+        self.avg = self.sum / self.count
+        
+        
 class Queens(object):
     def __init__(self, n=8, seed=7) -> None:
         assert n >= 2
@@ -134,7 +174,6 @@ class Queens(object):
 
     @staticmethod
     def get_c(n):
-        # return n
         if n <= 8:
             return n
         if n <= 16:
@@ -217,11 +256,17 @@ class Queens(object):
                             self.recover_conflict(i, j) # 恢复冲突表
 
     def test(self, logger, method=0, total_run=10):
+        """
+        method (int):
+            0 - vanilla_local_search
+            1 - local_search
+            2 - local_search_qs4
+        """
         method = self.vanilla_local_search if method == 0 else (self.local_search if method == 1 else self.local_search_qs4)
         method_name = '{}{}'.format(method.__name__, ' c = {}'.format(self.get_c(self.n)) if method == self.local_search_qs4 else '')
         logger.critical('[{} n = {n}]'.format(method_name, n=self.n))
-        step_meter = tools.AverageMeter()
-        time_meter = tools.AverageMeter()
+        step_meter = AverageMeter()
+        time_meter = AverageMeter()
         for i in range(total_run):
             s, t = method()
             step_meter.update(s)
@@ -236,12 +281,13 @@ class Queens(object):
 
 if __name__ == "__main__":
     exp_dir = './exp'
-    tools.mkdir(exp_dir)
+    if not os.path.exists(exp_dir):
+        os.makedirs(exp_dir)
     now_time = datetime.datetime.strftime(datetime.datetime.now(), '%m%d-%H%M%S')
     log_path = os.path.join(exp_dir, '{}.log'.format(now_time))
-    logger = tools.Logger(log_path, level='debug').logger
+    logger = Logger(log_path, level='debug').logger
 
-    method = 0
+    method = 2
 
     for n in [8, 16, 32, 64, 10**2, 10**3]:
         q = Queens(n=n)
